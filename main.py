@@ -110,7 +110,7 @@ def disconnect():
         send({"name": name, "message": "Telah Meninggalkan Ruangan"}, to=room)
         emit("update_users", rooms[room]["users"], to=room)
 
-# if __name__ == "__main__":
-#     socketio.run(app, host="0.0.0.0", port=5000)
 if __name__ == "__main__":
-    socketio.run(app, debug=True)
+    socketio.run(app, host="0.0.0.0", port=5000)
+# if __name__ == "__main__":
+#     socketio.run(app, debug=True)
