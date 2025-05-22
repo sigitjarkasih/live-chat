@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, session, redirect, url_for
-from flask_socketio import join_room, leave_room, send, SocketIO
+from flask_socketio import emit, join_room, leave_room, send, SocketIO
 import random
 from string import ascii_uppercase
 
@@ -50,11 +50,14 @@ def home():
 
 @app.route("/room")
 def room():
+    name = session.get("name")
     room = session.get("room")
-    if room is None or session.get("name") is None or room not in rooms:
+
+    if not name or not room or room not in rooms:
         return redirect(url_for("home"))
 
-    return render_template("room.html", code=room, messages=rooms[room]["messages"])
+    messages = rooms[room]["messages"]
+    return render_template("room.html", name=name, code=room, messages=messages)
 
 @socketio.on("message")
 def message(data):
@@ -70,34 +73,42 @@ def message(data):
     rooms[room]["messages"].append(content)
     print(f"{session.get('name')} said: {data['data']}")
 
+
 @socketio.on("connect")
 def connect(auth):
     room = session.get("room")
     name = session.get("name")
+
     if not room or not name:
         return
+
     if room not in rooms:
         leave_room(room)
         return
-    
+
     join_room(room)
-    send({"name": name, "message": "has entered the room"}, to=room)
+
+    # Tambahkan nama ke daftar pengguna online di room
+    if "users" not in rooms[room]:
+        rooms[room]["users"] = []
+
+    if name not in rooms[room]["users"]:
+        rooms[room]["users"].append(name)
+
     rooms[room]["members"] += 1
-    print(f"{name} joined room {room}")
+    send({"name": name, "message": "Telah Memasuki Ruangan"}, to=room)
+    emit("update_users", rooms[room]["users"], to=room)
 
 @socketio.on("disconnect")
 def disconnect():
     room = session.get("room")
     name = session.get("name")
-    leave_room(room)
 
-    if room in rooms:
+    if room in rooms and name in rooms[room]["users"]:
+        rooms[room]["users"].remove(name)
         rooms[room]["members"] -= 1
-        if rooms[room]["members"] <= 0:
-            del rooms[room]
-    
-    send({"name": name, "message": "has left the room"}, to=room)
-    print(f"{name} has left the room {room}")
+        send({"name": name, "message": "Telah Meninggalkan Ruangan"}, to=room)
+        emit("update_users", rooms[room]["users"], to=room)
 
 # if __name__ == "__main__":
 #     socketio.run(app, host="0.0.0.0", port=5000)
