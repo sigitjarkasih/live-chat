@@ -1,23 +1,22 @@
 {% extends 'base.html' %}
 
 {% block content %}
-
 <!-- Tailwind CSS CDN -->
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
-
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
   body {
-      font-family: 'Arial', sans-serif;
+    font-family: 'Arial', sans-serif;
   }
   .chat-bubble {
     padding: 10px;
     border-radius: 10px;
     margin: 5px 0;
-    max-width: 80vw; /* agar sesuai lebar layar mobile */
+    max-width: 80vw;
   }
 </style>
 
-<div class="flex flex-col md:flex-row min-h-screen bg-gray-100">
+<div class="flex flex-col lg:flex-row min-h-screen bg-gray-100">
 
   <!-- Sidebar -->
   <aside class="bg-blue-700 text-white p-5 w-full md:w-1/4 flex-shrink-0 flex flex-col">
@@ -27,8 +26,8 @@
     </div>
   </aside>
 
-   <!-- Chat Section -->
-   <main class="flex flex-col flex-grow w-full md:w-3/4 p-4 md:p-5">
+  <!-- Chat Section -->
+  <main class="flex flex-col flex-grow w-full md:w-3/4 p-4 md:p-5 min-w-0 overflow-hidden">
     <div class="bg-white rounded-lg shadow-lg flex flex-col flex-grow max-h-[calc(100vh-4rem)]">
 
       <!-- Header -->
@@ -37,52 +36,42 @@
       </header>
 
       <!-- Chat Messages -->
-      <section
-        id="messages"
+      <section id="messages"
         class="flex flex-col flex-grow overflow-y-auto px-4 py-3 space-y-2"
-        role="log"
-        aria-live="polite"
-        aria-relevant="additions"
-      >
+        role="log" aria-live="polite" aria-relevant="additions">
         {% for msg in messages %}
-        <div
-          class="chat-bubble max-w-full sm:max-w-[75%] p-3 rounded-lg
-                 {% if msg.name == username %}
-                   bg-green-200 self-end text-right
-                 {% else %}
-                   bg-gray-300 self-start text-left
-                 {% endif %}"
-          style="word-break: break-word;"
-        >
-          <p><strong>{{ msg.name }}</strong>: {{ msg.message }}</p>
-          <span class="text-xs text-gray-500">{{ msg.timestamp }}</span>
-        </div>
+          <div class="chat-bubble max-w-full sm:max-w-[75%] p-3 rounded-lg
+            {% if msg.name == username %}
+              bg-green-200 self-end text-right
+            {% else %}
+              bg-gray-300 self-start text-left
+            {% endif %}"
+            style="word-break: break-word;">
+            <p><strong>{{ msg.name }}</strong>: {{ msg.message }}</p>
+            <span class="text-xs text-gray-500">{{ msg.timestamp }}</span>
+          </div>
         {% endfor %}
       </section>
 
-      <!-- Message Input -->
+     <!-- Message Input -->
       <footer class="border-t p-3">
         <form id="chatForm" class="flex items-center space-x-3" onsubmit="return false;" aria-label="Chat message form">
-          <input
-            type="text"
-            id="message"
-            placeholder="Ketik Pesan..."
+          <input id="fileInput" type="file" class="hidden" />
+          <button type="button" onclick="fileInput.click()" class="bg-gray-200 px-3 py-1 rounded-full text-sm">
+            📎 Upload
+          </button>
+
+          <input type="text" id="message" placeholder="Ketik Pesan..."
             class="flex-grow border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            autocomplete="off"
-            aria-label="Type your message"
-          />
-          <button
-            type="submit"
-            id="sendBtn"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Send message"
-            disabled
-          >
+            autocomplete="off" aria-label="Type your message" />
+
+          <button type="submit" id="sendBtn"
+            class="bg-blue-500 hover:bg-blue-700 text-white text-xs px-2 py-1 md:text-sm md:px-4 md:py-2 rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Send message" disabled>
             Kirim
           </button>
         </form>
       </footer>
-    </div>
 
     <!-- Footer -->
     <footer class="mt-4 text-center text-sm text-gray-600 select-none">
@@ -98,16 +87,16 @@
   const socketio = io();
   const messages = document.getElementById("messages");
   const messageInput = document.getElementById("message");
+  const sendBtn = document.getElementById("sendBtn");
+  const fileInput = document.getElementById('fileInput');
   const notifSound = document.getElementById("notifSound");
   const chatForm = document.getElementById("chatForm");
-  const sendBtn = document.getElementById("sendBtn");
   const currentUsername = "{{ username | default('Guest') }}";
-  // Scroll to latest message
+
   function scrollToBottom() {
     messages.scrollTop = messages.scrollHeight;
   }
 
-  // Generate message bubble
   function createMessage(name, msg) {
     const time = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
     const isSent = name === currentUsername;
@@ -124,59 +113,80 @@
     if (!isSent) notifSound.play();
   }
 
-  // Receive message
   socketio.on("message", (data) => {
     createMessage(data.name, data.message);
   });
 
-  // Update user list
   socketio.on("update_users", function(users) {
     const userList = document.getElementById("user-list");
     userList.innerHTML = "";
 
-    users.forEach(function(user) {
-      const div = document.createElement("div");
-      div.className = "flex items-center space-x-2 truncate";
-      div.innerHTML = `
-        <div class="h-3 w-3 bg-green-400 rounded-full animate-pulse flex-shrink-0"></div>
-        <p class="font-semibold truncate">${user}</p>
-      `;
-      userList.appendChild(div);
-    });
+      users.forEach(function(user) {
+        const div = document.createElement("div");
+        div.className = "flex items-center space-x-2 truncate";
+        div.innerHTML = `
+          <div class="h-3 w-3 bg-green-400 rounded-full animate-pulse flex-shrink-0"></div>
+          <p class="font-semibold truncate">${user}</p>
+        `;
+        userList.appendChild(div);
+      });
   });
 
-  // Send message
-  function sendMessage() {
+    function sendMessage() {
     const msg = messageInput.value.trim();
-    if (!msg) return;
-    socketio.emit("message", { data: msg });
-    messageInput.value = "";
-    sendBtn.disabled = true;
-  }
+    const time = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
 
-  // Enable/Disable button
+      if (msg !== "") {
+        socketio.emit("message", { data: msg });
+        createMessage(currentUsername, msg);
+        messageInput.value = "";
+        sendBtn.disabled = true;
+      }
+
+      // Jika ada file terpilih
+      if (file) {
+        const fileURL = URL.createObjectURL(file);
+        const fileType = file.type;
+
+        let content = "";
+
+        if (fileType.startsWith("image/")) {
+          content = `<img src="${fileURL}" alt="${file.name}" class="max-w-xs rounded-lg" />`;
+        } else {
+          content = `<a href="${fileURL}" download="${file.name}" class="text-blue-600 underline">📄 ${file.name}</a>`;
+        }
+
+        createMessage(currentUsername, content);
+        file = null;
+        fileInput.value = ""; // Reset input file
+      }
+    }
+
   messageInput.addEventListener("input", () => {
     sendBtn.disabled = messageInput.value.trim() === "";
   });
 
-  // Send on form submit
   chatForm.addEventListener("submit", (e) => {
     e.preventDefault();
     sendMessage();
   });
 
-  // Send on Enter
   messageInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   });
+  
+  // Trigger kirim otomatis saat file dipilih
+  fileInput.addEventListener('change', function () {
+  if (fileInput.files.length > 0) {
+    file = fileInput.files[0];
+    sendMessage();
+  }
+});
 
-  // Set footer year
   document.getElementById("year").textContent = new Date().getFullYear();
-
-  // Auto scroll on load
   window.onload = scrollToBottom;
 </script>
 {% endblock %}
