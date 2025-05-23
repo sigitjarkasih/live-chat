@@ -71,7 +71,7 @@ def message(data):
     }
     send(content, to=room)
     rooms[room]["messages"].append(content)
-    print(f"{session.get('name')} said: {data['data']}")
+    print(f"{session.get('name')} : {data['data']}")
 
 
 @socketio.on("connect")
@@ -109,6 +109,10 @@ def disconnect():
         rooms[room]["members"] -= 1
         send({"name": name, "message": "Telah Meninggalkan Ruangan"}, to=room)
         emit("update_users", rooms[room]["users"], to=room)
+
+@socketio.on("file")
+def handle_file(data):
+    emit("file", data, broadcast=True)
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000)
